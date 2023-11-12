@@ -1,0 +1,31 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2a51ec3..23905c2 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,3 +1,11 @@
++set(AFL_CC_COMPILER LLVM)
++
++set(CMAKE_C_COMPILER /opt/aflnet/afl-clang-fast)
++set(CMAKE_CXX_COMPILER /opt/aflnet/afl-clang-fast++)
++
++set(ENV{CC} afl-clang-fast)
++set(ENV{CXX} afl-clang-fast++)
++
+ cmake_minimum_required(VERSION 3.13)
+ project(example-grpc LANGUAGES CXX)
+ 
+diff --git a/server/src/main.cpp b/server/src/main.cpp
+index 9b33084..9ed4c50 100644
+--- a/server/src/main.cpp
++++ b/server/src/main.cpp
+@@ -11,7 +11,9 @@ class AddressBookService final : public expcmake::AddressBook::Service {
+         virtual ::grpc::Status GetAddress(::grpc::ServerContext* context, const ::expcmake::NameQuerry* request, ::expcmake::Address* response)
+         {
+             std::cout << "Server: GetAddress for \"" << request->name() << "\"." << std::endl;
+-
++            if (request->name().empty()) {
++		         std::abort();
++	         }
+             response->set_name("Peter Peterson");
+             response->set_zip("12345");
+             response->set_country("Superland");
