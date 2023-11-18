@@ -40,8 +40,8 @@ ENV AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
     AFL_SKIP_CPUFREQ=1
 
 # Build simple grpc server
-COPY exmpl-cmake-grpc.patch / # patch with injected crash
-COPY corpus /corpus  # pre-collected
+COPY exmpl-cmake-grpc.patch /
+COPY corpus /corpus
 # Inject crash
 RUN cd exmpl-cmake-grpc && git apply /exmpl-cmake-grpc.patch
 RUN cd exmpl-cmake-grpc && mkdir build && cd build \
