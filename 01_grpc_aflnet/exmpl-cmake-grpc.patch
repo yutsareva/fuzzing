@@ -24,8 +24,8 @@ index 9b33084..9ed4c50 100644
              std::cout << "Server: GetAddress for \"" << request->name() << "\"." << std::endl;
 -
 +            if (request->name().empty()) {
-+		         std::abort();
-+	         }
++                std::abort();
++            }
              response->set_name("Peter Peterson");
              response->set_zip("12345");
              response->set_country("Superland");
