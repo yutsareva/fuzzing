@@ -1,0 +1,192 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2a51ec3..7d4ad33 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,3 +1,11 @@
++set(AFL_CC_COMPILER LLVM)
++
++set(CMAKE_C_COMPILER /AFLplusplus/afl-clang-fast)
++set(CMAKE_CXX_COMPILER /AFLplusplus/afl-clang-fast++)
++
++set(ENV{CC} /AFLplusplus/afl-clang-fast)
++set(ENV{CXX} /AFLplusplus/afl-clang-fast++)
++
+ cmake_minimum_required(VERSION 3.13)
+ project(example-grpc LANGUAGES CXX)
+ 
+diff --git a/proto/myproto/addressbook.proto b/proto/myproto/addressbook.proto
+index 4a738bb..8da45ae 100644
+--- a/proto/myproto/addressbook.proto
++++ b/proto/myproto/addressbook.proto
+@@ -6,6 +6,7 @@ import "myproto/address.proto";
+ 
+ message NameQuerry {
+     string name = 1;
++    string surname = 2;
+ }
+ 
+ service AddressBook {
+diff --git a/server/src/main.cpp b/server/src/main.cpp
+index 9b33084..34b6737 100644
+--- a/server/src/main.cpp
++++ b/server/src/main.cpp
+@@ -2,34 +2,141 @@
+ #include <myproto/addressbook.grpc.pb.h>
+ 
+ #include <grpc/grpc.h>
++#include <grpcpp/create_channel.h>
+ #include <grpcpp/server_builder.h>
+ 
++#include <condition_variable>
++
++#include <thread>
+ #include <iostream>
++#include <memory>
+ 
+-class AddressBookService final : public expcmake::AddressBook::Service {
+-    public:
+-        virtual ::grpc::Status GetAddress(::grpc::ServerContext* context, const ::expcmake::NameQuerry* request, ::expcmake::Address* response)
++class AddressBookService final : public expcmake::AddressBook::Service
++{
++public:
++    virtual ::grpc::Status GetAddress(::grpc::ServerContext *context, const ::expcmake::NameQuerry *request, ::expcmake::Address *response)
++    {
++        std::cout << "Server: GetAddress for '" << request->DebugString() << "'." << std::endl;
++        if (request->name() == "Mike")
+         {
+-            std::cout << "Server: GetAddress for \"" << request->name() << "\"." << std::endl;
+-
+-            response->set_name("Peter Peterson");
+-            response->set_zip("12345");
+-            response->set_country("Superland");
+-            
+-            return grpc::Status::OK;
++            std::abort();
++        }
++        if (request->surname() == "Black")
++        {
++            std::abort();
+         }
++        if (request->name() == "Jack")
++        {
++            if (request->surname() == "Jones")
++            {
++                std::abort();
++            }
++        }
++
++        response->set_name("Peter Peterson");
++        response->set_zip("12345");
++        response->set_country("Superland");
++
++        return grpc::Status::OK;
++    }
+ };
+ 
+-int main(int argc, char* argv[])
++std::mutex mtx;
++std::condition_variable cv;
++bool serverStarted = false;
++
++void runServer(std::unique_ptr<grpc::Server> &server)
+ {
+     grpc::ServerBuilder builder;
+-    builder.AddListeningPort("0.0.0.0:50051", grpc::InsecureServerCredentials());
++    builder.AddListeningPort("127.0.0.1:50051", grpc::InsecureServerCredentials());
++    AddressBookService service;
++    builder.RegisterService(&service);
++    server = builder.BuildAndStart();
+ 
+-    AddressBookService my_service;
+-    builder.RegisterService(&my_service);
++    {
++        std::lock_guard<std::mutex> lock(mtx);
++        serverStarted = true;
++    }
++    cv.notify_one();
++    std::cout << "server started\n"
++              << std::endl;
+ 
+-    std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+     server->Wait();
+-    
+-    return 0;
+ }
++
++int main()
++{
++    std::unique_ptr<grpc::Server> server;
++    std::thread serverThread(runServer, std::ref(server));
++
++    // Wait until server has started
++    {
++        std::unique_lock<std::mutex> lock(mtx);
++        cv.wait(lock, []
++                { return serverStarted; });
++    }
++
++    auto channel = grpc::CreateChannel("127.0.0.1:50051", grpc::InsecureChannelCredentials());
++    std::unique_ptr<expcmake::AddressBook::Stub> stub = expcmake::AddressBook::NewStub(channel);
++
++    while (true)
++    {
++        std::cout << "reading size from stdin" << std::endl;
++
++        // Read the 4-byte size prefix
++        uint32_t size;
++        std::cin.read(reinterpret_cast<char *>(&size), sizeof(size));
++        if (std::cin.eof() || std::cin.fail())
++        {
++            std::cout << "reading from stdin EOF or error" << std::endl;
++            break;
++        }
++
++        std::cout << "size: " << size << std::endl;
++        std::string input;
++        if (size > 0)
++        {
++            // Read the protobuf message
++            input = std::string(size, '\0');
++            std::cin.read(&input[0], size);
++            if (std::cin.eof() || std::cin.fail())
++            {
++                std::cerr << "Failed to read the complete protobuf message" << std::endl;
++                continue;
++            }
++        }
++
++        expcmake::NameQuerry query;
++        if (!query.ParseFromString(input))
++        {
++            std::cerr << "Failed to parse input" << std::endl;
++            continue;
++        }
++
++        std::cout << "sending query: " << query.DebugString();
++
++        expcmake::Address result;
++
++        grpc::ClientContext context;
++        grpc::Status status = stub->GetAddress(&context, query, &result);
++
++        if (status.ok())
++        {
++            std::cout << "gRPC succeeded" << std::endl;
++        }
++        else
++        {
++            std::cout << "gRPC Error - Code: " << status.error_code()
++                      << ", Message: " << status.error_message()
++                      << ", Details: " << status.error_details()
++                      << std::endl;
++        }
++    }
++
++    if (server)
++    {
++        server->Shutdown();
++        serverThread.join();
++    }
++    return 0;
++}
+\ No newline at end of file
