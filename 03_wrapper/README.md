@@ -30,7 +30,8 @@ See `client_save_corpus.patch`.
 docker run 03_wrapper
 ```
 
-### How to reproduce
+### How to reproduce crash
+
 ```bash
-cat /out/default/fuzzer_stats | /exmpl-cmake-grpc/build/server/server
+cat /out/default/crashes/<crash_id> | /exmpl-cmake-grpc/build/server/server
 ```

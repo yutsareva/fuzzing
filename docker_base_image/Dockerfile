@@ -30,24 +30,3 @@ RUN bash /libprotobuf_mutator_install.sh
 COPY aflplusplus_install.sh /
 RUN bash /aflplusplus_install.sh
 
-
-RUN git clone https://github.com/faaxm/exmpl-cmake-grpc.git
-COPY exmpl-cmake-grpc.patch /
-RUN cd exmpl-cmake-grpc \
-    && git apply /exmpl-cmake-grpc.patch \
-    && mkdir build && cd build \
-    && cmake .. \
-    && make
-
-RUN apt-get install vim -y
-
-RUN ln -s $(which grpc_cpp_plugin) /usr/bin/protoc-gen-grpc && \
-    protoc --proto_path=/exmpl-cmake-grpc/proto  --cpp_out=. --grpc_out=. myproto/address.proto myproto/addressbook.proto
-
-COPY custom_mutator.cpp /
-COPY Makefile /
-RUN make 
-
-COPY in /in
-COPY entrypoint.sh /
-ENTRYPOINT ["bash", "/entrypoint.sh"]
