@@ -10,7 +10,9 @@ sudo apt-get install -y ninja-build
 git clone https://github.com/AFLplusplus/AFLplusplus
 cd AFLplusplus
 
+export LLVM_CONFIG=llvm-config-14
+
 git checkout 61e27c6b54f7641a168b6acc6ecffb1754c10918
 
-make distrib
+make
 sudo make install
