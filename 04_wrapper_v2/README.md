@@ -1,10 +1,11 @@
 Test setup:
 - llvm-14
-- afl++
+- afl-clang-lto++
 - simple grpc server with injected crash
 - libprotobuf-mutator & afl++ custom mutator
 - wrapper to make gRPC calls
     - supports multiple calls in a single test
+- support AFL++ persistent mode
 
 
 ## How to run
