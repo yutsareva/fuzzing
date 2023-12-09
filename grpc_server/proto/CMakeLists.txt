@@ -19,6 +19,7 @@ target_link_libraries(myproto
         protobuf::libprotobuf
         gRPC::grpc
         gRPC::grpc++
+        stdc++
 )
 target_include_directories(myproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 

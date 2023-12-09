@@ -12,6 +12,8 @@
 #include "libprotobuf-mutator/src/mutator.h"
 
 #include <bits/stdc++.h>
+#include <chrono>
+#include <fstream>
 
 class MyMutator : public protobuf_mutator::Mutator
 {
@@ -34,9 +36,11 @@ extern "C" MyMutator *afl_custom_init(void *afl, unsigned int seed)
 
 extern "C" size_t afl_custom_fuzz(MyMutator *mutator, uint8_t *buf, size_t buf_size, uint8_t **out_buf, uint8_t *add_buf, size_t add_buf_size, size_t max_size)
 {
+    // auto start = std::chrono::high_resolution_clock::now();
+    // std::ofstream logFile("mutator_log.txt", std::ios::app);
     if (buf_size <= 4)
     {
-        std::cerr << "Buffer too small, parsing failed" << std::endl;
+        // logFile << "Buffer too small, parsing failed" << std::endl;
         return 0;
     }
 
@@ -64,15 +68,15 @@ extern "C" size_t afl_custom_fuzz(MyMutator *mutator, uint8_t *buf, size_t buf_s
         bool parse_ok = input.ParseFromArray(buf + offset, message_size);
         if (!parse_ok)
         {
-            std::cerr << "Parsing failed" << std::endl;
+            // logFile << "Parsing failed" << std::endl;
             break;
         }
         offset += message_size;
 
         mutator->Mutate(&input, max_size);
 
-        std::cout << "query " << ++idx << ": " << input.DebugString() << "\n"
-                  << std::endl;
+        // std::cout << "query " << ++idx << ": " << input.DebugString() << "\n"
+        //           << std::endl;
 
         std::string s;
         input.SerializeToString(&s);
@@ -91,12 +95,15 @@ extern "C" size_t afl_custom_fuzz(MyMutator *mutator, uint8_t *buf, size_t buf_s
         *out_buf = static_cast<uint8_t *>(afl_realloc(reinterpret_cast<void **>(out_buf), total_size));
         if (!*out_buf)
         {
-            std::cerr << "afl_realloc failed" << std::endl;
+            // logFile << "afl_realloc failed" << std::endl;
             return 0;
         }
 
         memcpy(*out_buf, temp_buffer.data(), total_size);
     }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> elapsed = end - start;
+    // logFile << "afl_custom_fuzz took " << elapsed.count() << " ms.\n";
 
     return total_size;
 }

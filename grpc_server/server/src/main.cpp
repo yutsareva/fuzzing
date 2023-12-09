@@ -10,27 +10,21 @@
 #include <thread>
 #include <iostream>
 #include <memory>
+#include <fstream>
 
 class AddressBookService final : public expcmake::AddressBook::Service
 {
 public:
     virtual ::grpc::Status GetAddress(::grpc::ServerContext *context, const ::expcmake::NameQuerry *request, ::expcmake::Address *response)
     {
-        std::cout << "Server: GetAddress for '" << request->DebugString() << "'." << std::endl;
-        if (request->name().rfind("Mike", 0) == 0)
-        {
+        if (request->name().rfind("Mike", 0) == 0) {
             std::abort();
         }
-        if (request->surname().rfind("Black", 0) == 0)
-        {
+        if (request->name() == "Lucy") {
             std::abort();
         }
-        if (request->name().rfind("M", 0) == 0)
-        {
-            if (request->surname().rfind("T", 0) == 0)
-            {
-                std::abort();
-            }
+        if (!strcmp(request->name().c_str(), "Rick")) {
+            std::abort();
         }
 
         response->set_name("Peter Peterson");
@@ -44,12 +38,13 @@ public:
 std::mutex mtx;
 std::condition_variable cv;
 bool serverStarted = false;
+AddressBookService service;
 
 void runServer(std::unique_ptr<grpc::Server> &server)
 {
     grpc::ServerBuilder builder;
-    builder.AddListeningPort("127.0.0.1:50051", grpc::InsecureServerCredentials());
-    AddressBookService service;
+    // builder.AddListeningPort("unix:/tmp/grpc.sock", grpc::InsecureServerCredentials());
+    // AddressBookService service;
     builder.RegisterService(&service);
     server = builder.BuildAndStart();
 
@@ -58,85 +53,69 @@ void runServer(std::unique_ptr<grpc::Server> &server)
         serverStarted = true;
     }
     cv.notify_one();
-    std::cout << "server started\n"
-              << std::endl;
 
     server->Wait();
 }
 
+__AFL_FUZZ_INIT();
+
 int main()
 {
+    #ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+    #endif
+
+    unsigned char *input = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
+                                                    // and before __AFL_LOOP!
     std::unique_ptr<grpc::Server> server;
     std::thread serverThread(runServer, std::ref(server));
 
-    // Wait until server has started
     {
         std::unique_lock<std::mutex> lock(mtx);
         cv.wait(lock, []
                 { return serverStarted; });
     }
+    // auto channel = grpc::CreateChannel("unix:/tmp/grpc.sock", grpc::InsecureChannelCredentials());
+    // std::unique_ptr<expcmake::AddressBook::Stub> stub = expcmake::AddressBook::NewStub(channel);
 
-    auto channel = grpc::CreateChannel("127.0.0.1:50051", grpc::InsecureChannelCredentials());
-    std::unique_ptr<expcmake::AddressBook::Stub> stub = expcmake::AddressBook::NewStub(channel);
-
-    while (true)
-    {
-        std::cout << "reading size from stdin" << std::endl;
-
-        // Read the 4-byte size prefix
-        uint32_t size;
-        std::cin.read(reinterpret_cast<char *>(&size), sizeof(size));
-        if (std::cin.eof() || std::cin.fail())
+      while (__AFL_LOOP(1000)) {
+        int len = __AFL_FUZZ_TESTCASE_LEN;
+        auto buf = input;
+        while (true)
         {
-            std::cout << "reading from stdin EOF or error" << std::endl;
-            break;
-        }
-
-        std::cout << "size: " << size << std::endl;
-        std::string input;
-        if (size > 0)
-        {
-            // Read the protobuf message
-            input = std::string(size, '\0');
-            std::cin.read(&input[0], size);
-            if (std::cin.eof() || std::cin.fail())
-            {
-                std::cerr << "Failed to read the complete protobuf message" << std::endl;
-                continue;
+            uint32_t size;
+            if (len < sizeof(size)) {
+                break;
             }
-        }
+            std::memcpy(&size, buf, sizeof(size));
+            buf += sizeof(size);
+            len -= sizeof(size);
 
-        expcmake::NameQuerry query;
-        if (!query.ParseFromString(input))
-        {
-            std::cerr << "Failed to parse input" << std::endl;
-            continue;
-        }
+            if (size == 0 || size > len) {
+                break;
+            }
 
-        std::cout << "sending query: " << query.DebugString();
+            expcmake::NameQuerry query;
+            if (!query.ParseFromArray(buf, size)) {
+                break;
+            }
+            buf += size;
+            len -= size;
 
-        expcmake::Address result;
+            expcmake::Address result;
 
-        grpc::ClientContext context;
-        grpc::Status status = stub->GetAddress(&context, query, &result);
-
-        if (status.ok())
-        {
-            std::cout << "gRPC succeeded" << std::endl;
-        }
-        else
-        {
-            std::cout << "gRPC Error - Code: " << status.error_code()
-                      << ", Message: " << status.error_message()
-                      << ", Details: " << status.error_details()
-                      << std::endl;
+    //        grpc::ClientContext context;
+    //        grpc::Status status = stub->GetAddress(&context, query, &result);
+            grpc::ServerContext context;
+            auto status = service.GetAddress(&context, &query, &result);
         }
     }
 
     if (server)
     {
-        server->Shutdown();
-        serverThread.join();
+       server->Shutdown();
+       serverThread.join();
     }
+
     return 0;
 }

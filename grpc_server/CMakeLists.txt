@@ -1,10 +1,13 @@
-set(AFL_CC_COMPILER LLVM)
+set(CMAKE_C_COMPILER afl-clang-lto)
+set(CMAKE_CXX_COMPILER afl-clang-lto++)
 
-set(CMAKE_C_COMPILER /AFLplusplus/afl-clang-fast)
-set(CMAKE_CXX_COMPILER /AFLplusplus/afl-clang-fast++)
+set(ENV{CC} afl-clang-lto)
+set(ENV{CXX} afl-clang-lto)
+# set(CMAKE_C_COMPILER clang)
+# set(CMAKE_CXX_COMPILER clang++)
 
-set(ENV{CC} /AFLplusplus/afl-clang-fast)
-set(ENV{CXX} /AFLplusplus/afl-clang-fast++)
+# set(ENV{CC} clang)
+# set(ENV{CXX} clang++)
 
 cmake_minimum_required(VERSION 3.13)
 project(example-grpc LANGUAGES CXX)

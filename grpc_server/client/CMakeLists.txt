@@ -20,4 +20,5 @@ add_executable(client ${SOURCES})
 target_link_libraries(client
     PRIVATE
         myproto
+        stdc++
 )

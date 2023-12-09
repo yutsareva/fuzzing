@@ -10,9 +10,8 @@ PROTOBUF_LIB=/usr/local/lib/libprotobuf.so
 LD_LIBRARY_PATH=/usr/local/lib
 PROTOBUF_DIR=/usr/local
 
-LPM_DIR=/libprotobuf-mutator
-LPM_LIB=$(LPM_DIR)/build/src/libfuzzer/libprotobuf-mutator-libfuzzer.a $(LPM_DIR)/build/src/libprotobuf-mutator.a
-INC=-I$(PROTOBUF_DIR)/include -I$(LPM_DIR) -I/ -I/AFLplusplus/include
+LPM_LIB=$(LD_LIBRARY_PATH)/libprotobuf-mutator-libfuzzer.a $(LD_LIBRARY_PATH)/libprotobuf-mutator.a
+INC=-I$(PROTOBUF_DIR)/include -I/libprotobuf-mutator -I~/libprotobuf-mutator -I/ -I/AFLplusplus/include -I. -I~/AFLplusplus/include -I/usr/local/include/libprotobuf-mutator/
 
 all: $(TARGET).so
 

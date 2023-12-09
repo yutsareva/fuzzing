@@ -9,7 +9,6 @@ git submodule update --init
 
 mkdir -p cmake/build
 cd cmake/build
-cmake ../.. -DBUILD_SHARED_LIBS=ON
+cmake ../.. -DBUILD_SHARED_LIBS=ON  -DCMAKE_BUILD_TYPE=Release 
 make
 sudo make install
-
